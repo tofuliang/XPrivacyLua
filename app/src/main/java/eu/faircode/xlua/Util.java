@@ -19,6 +19,7 @@
 
 package eu.faircode.xlua;
 
+import android.annotation.SuppressLint;
 import android.app.Dialog;
 import android.app.Notification;
 import android.app.NotificationChannel;
@@ -28,22 +29,24 @@ import android.content.DialogInterface;
 import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
 import android.content.res.Resources;
+import android.net.Uri;
 import android.os.Build;
+import android.os.Bundle;
 import android.os.Process;
 import android.os.UserHandle;
 import android.text.TextUtils;
 import android.util.Log;
 import android.util.TypedValue;
 
-import java.lang.reflect.Constructor;
-import java.lang.reflect.Method;
-import java.security.MessageDigest;
-
 import androidx.appcompat.app.AlertDialog;
 import androidx.lifecycle.Lifecycle;
 import androidx.lifecycle.LifecycleObserver;
 import androidx.lifecycle.LifecycleOwner;
 import androidx.lifecycle.OnLifecycleEvent;
+
+import java.lang.reflect.Constructor;
+import java.lang.reflect.Method;
+import java.security.MessageDigest;
 
 class Util {
     private final static String TAG = "XLua.Util";
@@ -167,8 +170,36 @@ class Util {
         Log.i(TAG, "Cancelled " + tag + ":" + id + " as " + userid);
     }
 
+    private static Boolean isExp;
+    private static boolean isExpModuleActive() {
+        if (isExp != null) {
+            return isExp;
+        }
+        try {
+            @SuppressLint("PrivateApi") Context context = (Context) Class.forName("android.app.ActivityThread")
+                    .getDeclaredMethod("currentApplication", new Class[0]).invoke(null, new Object[0]);
+            if (context == null) {
+                return isExp = false;
+            }
+            try {
+                Bundle call = context.getContentResolver().call(Uri.parse("content://me.weishu.exposed.CP/"), "active", null, null);
+                if (call == null) {
+                    return isExp = false;
+                }
+                isExp = call.getBoolean("active", false);
+                return isExp;
+            } catch (Throwable th) {
+                return isExp = false;
+            }
+        } catch (Throwable th2) {
+            return isExp = false;
+        }
+    }
+
     static boolean isVirtualXposed() {
-        return !TextUtils.isEmpty(System.getProperty("vxp"));
+        return !TextUtils.isEmpty(System.getProperty("vxp"))
+                || !TextUtils.isEmpty(System.getProperty("exp"))
+                || isExpModuleActive();
     }
 
     public static int resolveColor(Context context, int attr) {
